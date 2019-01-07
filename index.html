@@ -1,0 +1,155 @@
+<html>
+<style>
+#content {
+    width: 100%;
+    height: 300px;
+}
+#output {
+  overflow-wrap: break-word;
+}
+img {
+    width: 24px;
+    height: 24px;
+}
+</style>
+<textarea id="content"></textarea>
+<label>Display letters one by one</label><input type="checkbox" id="spanning" checked></input>
+<hr />
+<pre id="output"></pre>
+<hr />
+<div>𝖢𝗋𝖾𝖺𝗍𝖾𝖽 𝖻𝗒<a href="https://twitter.com/d24d30033e5c469"><img src="https://pbs.twimg.com/profile_images/437104712827944960/_WOFTdwm_400x400.png">haᵲuʞaeru</a></div>
+<script>
+const defaultValue = `\
+abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ
+<b>abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ</b>
+<i>abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ</i>
+<bi>abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ</bi>
+<h>abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ</h>
+<bh>abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ</bh>
+<f>abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ</f>
+<d>abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ</d>
+<bf>abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ</bf>
+<ss>abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ</ss>
+<bss>abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ</bss>
+<iss>abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ</iss>
+<biss>abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ</biss>
+<m>abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ</m>
+`
+
+const isAsciiLarge = (cp) => {
+    return 0x41 <= cp && cp <= 0x5b
+}
+const isAsciiSmall = (cp) => {
+    return 0x61 <= cp && cp <= 0x7b
+}
+
+let isSpanning = true
+
+String.prototype.convert = function(changeCodepoint) {
+    let codepoints = []
+    for (let i=0; i < this.length; i++) {
+        const cp = this[i].codePointAt()
+        codepoints.push(changeCodepoint(cp))
+    }
+
+    const converted = codepoints.map(r => {
+      if (isSpanning) {
+        return '<span>' + String.fromCodePoint(r) + '</span>'
+      }
+      return String.fromCodePoint(r)
+    }).join('')
+    return converted
+}
+
+const getSimpleChangeCodepoint = (largeStart, smallStart) => {
+  const changeCodePoint = (cp) => {
+      if (isAsciiLarge(cp)) {
+          return cp + largeStart - 0x41
+      } else if (isAsciiSmall(cp)) {
+          return cp + smallStart - 0x61
+      }
+      return cp
+  }
+  return changeCodePoint
+}
+
+const changer = {
+  'B': getSimpleChangeCodepoint(0x1D400, 0x1D41A),
+  'I': getSimpleChangeCodepoint(0x1D434, 0x1D44E),
+  'BI': getSimpleChangeCodepoint(0x1D468, 0x1D482),
+  'H': getSimpleChangeCodepoint(0x1D49C, 0x1D4B6),
+  'BH': getSimpleChangeCodepoint(0x1D4D0, 0x1D4EA),
+  'F': getSimpleChangeCodepoint(0x1D504, 0x1D51E),
+  'D': getSimpleChangeCodepoint(0x1D538, 0x1D552),
+  'BF': getSimpleChangeCodepoint(0x1D56C, 0x1D586),
+  'SS': getSimpleChangeCodepoint(0x1D5A0, 0x1D5BA),
+  'BSS': getSimpleChangeCodepoint(0x1D5D4, 0x1D5EE),
+  'ISS': getSimpleChangeCodepoint(0x1D608, 0x1D622),
+  'BISS': getSimpleChangeCodepoint(0x1D63C, 0x1D656),
+  'M': getSimpleChangeCodepoint(0x1D670, 0x1D68A),
+}
+
+const content = document.getElementById("content")
+const output = document.getElementById("output")
+const spanning = document.getElementById("spanning")
+spanning.addEventListener('change', () => {
+  isSpanning = !isSpanning
+  debounce(go, 300)(content)
+})
+content.value = defaultValue
+
+const parser = new DOMParser()
+const go = (element) => {
+  const doc = parser.parseFromString(element.value, "text/html")
+  let result = ''
+  let currentNodeName = null
+  const execute = (e) => {
+      if (e.childNodes.length === 1) {
+          const changeMethod = changer[e.nodeName]
+          if (changeMethod) {
+            result += e.innerText.convert(changeMethod)
+            return
+          }
+      } else if (e.childNodes.length > 1) {
+          currentNodeName = e.nodeName
+          e.childNodes.forEach(execute)
+          currentNodeName = null
+          return
+      }
+      if (currentNodeName) {
+          const changeMethod = changer[e.nodeName]
+          if (changeMethod) {
+            result += e.textContent.convert(changeMethod)
+          } else {
+            result += e.textContent
+          }
+      } else {
+        result += e.textContent
+      }
+  }
+
+  for (let i=0; i < doc.body.childNodes.length; i++) {
+    const node = doc.body.childNodes[i]
+    execute(node)
+  }
+  output.innerHTML = result
+}
+
+const debounce = (func, wait) => {
+  let timeout
+  return function() {
+    const context = this, args = arguments;
+    const later = () => {
+      timeout = null
+      func.apply(context, args)
+    }
+    clearTimeout(timeout)
+    timeout = setTimeout(later, wait)
+  }
+}
+
+content.addEventListener('input', e => debounce(go, 300)(content))
+go(content)
+
+</script>
+</html>
